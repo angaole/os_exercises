@@ -30,7 +30,7 @@ x86保护模式中权限管理无处不在，下面哪些时候要检查访问�
  ```
 - [x]  
 
->  
+>  对全军段描述符表进行初始化，在此基础上实现段机制，从而实现页机制。
 
 ---
 
@@ -41,7 +41,7 @@ x86保护模式中权限管理无处不在，下面哪些时候要检查访问�
 
 - [x]  
 
-> 
+> qemu退出是因为发生了异常，具体异常为general protection，原因是IDT没有初始化。
 
 （2）(spoc)假定你已经完成了lab1的实验,接下来是对lab1的中断处理的回顾：请把你的学号对37(十进制)取模，得到一个数x（x的范围是-1<x<37），然后在你的答案的基础上，修init.c中的kern_init函数，在大约36行处，即
 
@@ -110,7 +110,58 @@ va 0xcd82c07c, pa 0x0c20907c, pde_idx 0x00000336, pde_ctx  0x00037003, pte_idx 0
 
 - [x]  
 
-> 
+> 答案为:<br />
+va 0xc2265b1f, pa 0x0d8f1b1f, pde_idx 0x00000308, pde_ctx 0x00009003, pte_idx 0x00000265, pte_ctx 0x8f100003<br />
+va 0xcc386bbc, pa 0x0414cbbc, pde_idx 0x00000330, pde_ctx 0x00031003, pte_idx 0x00000386, pte_ctx 0x14c00003<br />
+va 0xc7ed4d57, pa 0x07311d57, pde_idx 0x0000031f, pde_ctx 0x00020003, pte_idx 0x000002d4, pte_ctx 0x31100003<br />
+va 0xca6cecc0, pa 0x0c9e9cc0, pde_idx 0x00000329, pde_ctx 0x0002a003, pte_idx 0x000002ce, pte_ctx 0x9e900003<br />
+va 0xc18072e8, pa 0x007412e8, pde_idx 0x00000306, pde_ctx 0x00007003, pte_idx 0x00000007, pte_ctx 0x74100003<br />
+va 0xcd5f4b3a, pa 0x06ec9b3a, pde_idx 0x00000335, pde_ctx 0x00036003, pte_idx 0x000001f4, pte_ctx 0xec900003<br />
+va 0xcc324c99, pa 0x0008ac99, pde_idx 0x00000330, pde_ctx 0x00031003, pte_idx 0x00000324, pte_ctx 0x08a00003<br />
+va 0xc7204e52, pa 0x0b8b6e52, pde_idx 0x0000031c, pde_ctx 0x0001d003, pte_idx 0x00000204, pte_ctx 0x8b600003<br />
+va 0xc3a90293, pa 0x0f1fd293, pde_idx 0x0000030e, pde_ctx 0x0000f003, pte_idx 0x00000290, pte_ctx 0x1fd00003<br />
+va 0xce6c3f32, pa 0x007d4f32, pde_idx 0x00000339, pde_ctx 0x0003a003, pte_idx 0x000002c3, pte_ctx 0x7d400003<br />
+va 0xce6c3f32, pa 0x007d4f32, pde_idx 0x00000339, pde_ctx 0x0003a003, pte_idx 0x000002c3, pte_ctx 0x7d400003<br />
+va 0xce6c3f32, pa 0x007d4f32, pde_idx 0x00000339, pde_ctx 0x0003a003, pte_idx 0x000002c3, pte_ctx 0x7d400003<br />
+这个程序最后得到的pte_ctx可能有误（因为不确定是否是前面的16位），主要的原因是题目意思不明确。<br />
+因为两级页表共有20位，则页内偏移自然就要有12位，那么256M的实地址为18位，则需要页表提供一个16位的索引。<br />
+代码如下所示：<br />
+\#include <stdio.h><br />
+\#include <stdlib.h><br />
+int char2int(char a){ <br />
+	return (a>58)?(a-87):(a-48); <br />
+} <br />
+int value(char* a,int start){ <br />
+	int i=0,sum=0; <br />
+	for(;i<8;i++){ <br />
+		sum*=16;<br />
+		sum+=char2int(a[start+i]);<br />
+	}<br />
+	return sum;<br />
+}<br />
+int main(){<br />
+	FILE *fp=fopen("data.txt","rt");<br />
+	int index=0;<br />
+	char a[1024];<br />
+	int offset = 9;<br />
+	unsigned int page=0x00;<br />
+	int data1=0,data2=0;<br />
+	int pde_idx=0,pde_ctx,pte_idx,pte_ctx;<br />
+	int i=0;<br />
+	while(!feof(fp)){<br />
+		fgets(a,1000,fp);<br />
+			data1=value(a,5);<br />
+			data2=value(a,20);<br />
+			unsigned int data3=(unsigned int)data1;<br />
+			unsigned int data4=(unsigned int)data2;<br />
+			pde_idx=data3/(1024*1024*4);<br />
+			pde_ctx=((data3/(1024*1024*4)-0x300)+1)<<12|3;<br />
+			pte_idx=(data3/4096)%1024;<br />
+			pte_ctx=(data4/4096)<<20|3;<br />
+			printf("va 0x%.8x, pa 0x%.8x, pde_idx 0x%.8x, pde_ctx 0x%.8x, pte_idx 0x%.8x, pte_ctx 0x%.8x\n",data1,data2,pde_idx,pde_ctx,pte_idx,pte_ctx);<br />
+	};<br />
+	return 0;<br />
+}<br />
 
 ---
 
